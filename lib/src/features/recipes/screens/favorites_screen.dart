@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:palate_path/src/core/models/recipe.dart';
 import 'package:palate_path/src/core/services/firebase_service.dart';
-import 'package:go_router/go_router.dart';
+import 'package:palate_path/src/features/recipes/widgets/recipe_card.dart';
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
@@ -13,7 +13,7 @@ class FavoritesScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Favorite Recipes')),
       body: StreamBuilder<List<Recipe>>(
-        stream: Stream.value([]), // Placeholder
+        stream: firebaseService.getFavoriteRecipes(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -34,20 +34,7 @@ class FavoritesScreen extends StatelessWidget {
             itemCount: recipes.length,
             itemBuilder: (context, index) {
               final recipe = recipes[index];
-              return Card(
-                margin: const EdgeInsets.all(8.0),
-                child: ListTile(
-                  leading: Image.network(
-                    recipe.imageUrl,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                  ),
-                  title: Text(recipe.name),
-                  subtitle: Text(recipe.difficulty),
-                  onTap: () => context.go('/home/${recipe.id}'),
-                ),
-              );
+              return RecipeCard(recipe: recipe);
             },
           );
         },

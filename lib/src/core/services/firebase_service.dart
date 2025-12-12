@@ -46,40 +46,41 @@ class FirebaseService {
   Future<void> signOut() async {
     await _auth.signOut();
   }
-Future<User?> signUpWithEmailPassword(String email, String password) async {
-  final cred = await _auth.createUserWithEmailAndPassword(
-    email: email.trim(),
-    password: password.trim(),
-  );
-  return cred.user;
-}
 
-Future<User?> signInWithEmailPassword(String email, String password) async {
-  final cred = await _auth.signInWithEmailAndPassword(
-    email: email.trim(),
-    password: password.trim(),
-  );
-  return cred.user;
-}
+  Future<User?> signUpWithEmailPassword(String email, String password) async {
+    final cred = await _auth.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password.trim(),
+    );
+    return cred.user;
+  }
 
-/// Creates a basic profile doc if it doesn't exist yet.
-/// This keeps AuthGate + onboarding logic working.
-Future<void> createUserProfile(String userId, String email) async {
-  final ref = _firestore.collection('userProfiles').doc(userId);
-  final doc = await ref.get();
+  Future<User?> signInWithEmailPassword(String email, String password) async {
+    final cred = await _auth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password.trim(),
+    );
+    return cred.user;
+  }
 
-  if (doc.exists) return;
+  /// Creates a basic profile doc if it doesn't exist yet.
+  /// This keeps AuthGate + onboarding logic working.
+  Future<void> createUserProfile(String userId, String email) async {
+    final ref = _firestore.collection('userProfiles').doc(userId);
+    final doc = await ref.get();
 
-  await ref.set({
-    'userId': userId,
-    'email': email,
-    'likedFoods': <String>[],
-    'dislikedFoods': <String>[],
-    'allergies': <String>[],
-    'createdAt': FieldValue.serverTimestamp(),
-    'updatedAt': FieldValue.serverTimestamp(),
-  }, SetOptions(merge: true));
-}
+    if (doc.exists) return;
+
+    await ref.set({
+      'userId': userId,
+      'email': email,
+      'likedFoods': <String>[],
+      'dislikedFoods': <String>[],
+      'allergies': <String>[],
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 
   // ---------------------------
   // User Profile
@@ -137,54 +138,64 @@ Future<void> createUserProfile(String userId, String email) async {
 
   // ---------------------------
   // Favorites
-  // Collection: userRecipeStatus
-  // Doc id: {uid}_{recipeId}
+  // Collection: userProfiles/{uid}/favorites/{recipeId}
   // ---------------------------
   Stream<bool> isRecipeFavorited(String recipeId) {
     final user = _auth.currentUser;
     if (user == null) return Stream.value(false);
 
-    final docId = '${user.uid}_$recipeId';
     return _firestore
-        .collection('userRecipeStatus')
-        .doc(docId)
+        .collection('userProfiles')
+        .doc(user.uid)
+        .collection('favorites')
+        .doc(recipeId)
         .snapshots()
-        .map((snap) => (snap.data()?['isFavorite'] as bool?) ?? false);
+        .map((snap) => snap.exists);
   }
 
-  Future<void> toggleFavorite(String recipeId, bool nextValue) async {
+  Future<void> toggleFavorite(String recipeId, bool makeFavorite) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final docId = '${user.uid}_$recipeId';
-    await _firestore.collection('userRecipeStatus').doc(docId).set({
-      'userId': user.uid,
-      'recipeId': recipeId,
-      'isFavorite': nextValue,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    final favoriteRef = _firestore
+        .collection('userProfiles')
+        .doc(user.uid)
+        .collection('favorites')
+        .doc(recipeId);
+
+    if (makeFavorite) {
+      // Add to favorites
+      await favoriteRef.set({
+        'favoritedAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      // Remove from favorites
+      await favoriteRef.delete();
+    }
   }
 
-  Stream<List<String>> favoriteRecipeIds() {
+  Stream<List<Recipe>> getFavoriteRecipes() {
     final user = _auth.currentUser;
     if (user == null) return Stream.value([]);
 
     return _firestore
-        .collection('userRecipeStatus')
-        .where('userId', isEqualTo: user.uid)
-        .where('isFavorite', isEqualTo: true)
+        .collection('userProfiles')
+        .doc(user.uid)
+        .collection('favorites')
         .snapshots()
-        .map((snap) =>
-            snap.docs.map((d) => d.data()['recipeId'] as String).toList());
-  }
-
-  Stream<List<Recipe>> getFavoriteRecipes() {
-    // Fetch recipes then filter using favorite ids stream.
-    // (Avoids Firestore whereIn limit issues and is simpler for MVP.)
-    return favoriteRecipeIds().asyncExpand((ids) {
-      if (ids.isEmpty) return Stream.value(<Recipe>[]);
-      return getRecipes().map((recipes) =>
-          recipes.where((r) => ids.contains(r.id)).toList());
+        .map((snapshot) => snapshot.docs.map((doc) => doc.id).toList())
+        .asyncExpand((favoriteRecipeIds) {
+      if (favoriteRecipeIds.isEmpty) {
+        return Stream.value([]);
+      }
+      // Now fetch the actual recipe documents based on the IDs
+      return _firestore
+          .collection('recipes')
+          .where(FieldPath.documentId, whereIn: favoriteRecipeIds)
+          .snapshots()
+          .map((recipeSnapshot) => recipeSnapshot.docs
+              .map((doc) => Recipe.fromFirestore(doc.data(), doc.id))
+              .toList());
     });
   }
 }

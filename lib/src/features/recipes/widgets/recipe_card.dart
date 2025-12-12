@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:palate_path/src/core/models/recipe.dart';
+import 'package:palate_path/src/core/services/firebase_service.dart';
 import 'package:palate_path/src/features/recipes/screens/recipe_detail_screen.dart';
 import 'package:palate_path/src/features/recipes/widgets/recipe_image.dart';
 
 class RecipeCard extends StatelessWidget {
   final Recipe recipe;
+  final FirebaseService _firebaseService = FirebaseService();
 
-  const RecipeCard({super.key, required this.recipe});
+  RecipeCard({super.key, required this.recipe});
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +62,22 @@ class RecipeCard extends StatelessWidget {
                       const Icon(Icons.leaderboard_outlined, size: 16.0),
                       const SizedBox(width: 4.0),
                       Text(recipe.difficulty),
+                      const Spacer(),
+                      StreamBuilder<bool>(
+                        stream: _firebaseService.isRecipeFavorited(recipe.id),
+                        builder: (context, snapshot) {
+                          final isFavorited = snapshot.data ?? false;
+                          return IconButton(
+                            icon: Icon(
+                              isFavorited ? Icons.favorite : Icons.favorite_border,
+                              color: isFavorited ? Colors.red : Colors.grey,
+                            ),
+                            onPressed: () {
+                              _firebaseService.toggleFavorite(recipe.id, !isFavorited);
+                            },
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ],
