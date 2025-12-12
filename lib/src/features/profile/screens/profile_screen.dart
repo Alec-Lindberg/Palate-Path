@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:palate_path/src/core/models/user_profile.dart';
 import 'package:palate_path/src/core/services/firebase_service.dart';
-import 'package:palate_path/src/data/seed_recipes.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -12,7 +11,6 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final firebaseService = FirebaseService();
     final currentUser = FirebaseAuth.instance.currentUser;
-    final seedService = SeedService();
 
     // If not logged in, send user back to auth entry.
     if (currentUser == null) {
@@ -109,18 +107,6 @@ class ProfileScreen extends StatelessWidget {
                     context.go('/');
                   },
                   child: const Text('Sign Out'),
-                ),
-                const Divider(),
-                ElevatedButton(
-                  onPressed: () async {
-                    await seedService.seedRecipes(overwrite: true);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Recipe images re-seeded.')),
-                      );
-                    }
-                  },
-                  child: const Text('Reseed Images (Debug)'),
                 ),
               ],
             ),

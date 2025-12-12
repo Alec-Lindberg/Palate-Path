@@ -20,12 +20,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recipe Discovery'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => context.go('/home/add'),
-          ),
-        ],
       ),
       body: StreamBuilder<UserProfile?>(
         stream: _firebaseService.getUserProfile(),
@@ -73,22 +67,23 @@ class _HomeScreenState extends State<HomeScreen> {
               }
 
               final allRecipes = recipeSnapshot.data ?? [];
+              final likedCuisines = userProfile.likedFoods.map((f) => f.toLowerCase().trim()).toList();
+              final dislikedCuisines = userProfile.dislikedFoods.map((f) => f.toLowerCase().trim()).toList();
+              final allergies = userProfile.allergies.map((a) => a.toLowerCase().trim()).toList();
+
               final filteredRecipes = allRecipes.where((recipe) {
-                final liked = userProfile.likedFoods.contains(
-                  recipe.cuisine,
-                );
-                final disliked = userProfile.dislikedFoods.contains(
-                  recipe.cuisine,
-                );
-                final hasAllergy = userProfile.allergies.any(
-                  (allergy) => recipe.ingredients.any(
-                    (ingredient) => ingredient.toLowerCase().contains(
-                      allergy.toLowerCase(),
-                    ),
-                  ),
+                final recipeCuisine = recipe.cuisine.toLowerCase().trim();
+
+                final isLiked = likedCuisines.contains(recipeCuisine);
+                final isDisliked = dislikedCuisines.contains(recipeCuisine);
+
+                final hasAllergy = allergies.any((allergy) => 
+                  recipe.ingredients.any((ingredient) => 
+                    ingredient.toLowerCase().contains(allergy)
+                  )
                 );
 
-                return liked && !disliked && !hasAllergy;
+                return isLiked && !isDisliked && !hasAllergy;
               }).toList();
 
               if (filteredRecipes.isEmpty) {
