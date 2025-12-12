@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
@@ -14,9 +15,10 @@ import 'package:palate_path/src/features/recipes/screens/home_screen.dart';
 import 'package:palate_path/src/features/recipes/screens/recipe_detail_screen.dart';
 import 'package:palate_path/src/features/shell/screens/app_shell.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Prevent: [core/duplicate-app] A Firebase App named "[DEFAULT]" already exists
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -25,10 +27,12 @@ void main() async {
 
   runApp(const PalatePathApp());
 
-  // optional: seed AFTER UI starts (recommended)
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    SeedService().seedRecipes(); // don't await
-  });
+  // Seed AFTER first frame so startup isn't blocked (debug only).
+  if (kDebugMode) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SeedService().seedRecipes(); // intentionally not awaited
+    });
+  }
 }
 
 class PalatePathApp extends StatelessWidget {
@@ -39,6 +43,7 @@ class PalatePathApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Palate Path',
       theme: appTheme,
+      // no darkTheme
       routerConfig: _router,
     );
   }
@@ -85,4 +90,5 @@ final _router = GoRouter(
     ),
   ],
 );
+
 
