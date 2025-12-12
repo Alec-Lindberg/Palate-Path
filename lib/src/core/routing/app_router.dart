@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
-
-import 'package:palate_path/firebase_options.dart';
-import 'package:palate_path/src/core/theme/theme.dart';
-import 'package:palate_path/src/data/seed_recipes.dart';
-
-import 'package:palate_path/src/features/auth/screens/auth_screen.dart';
+import 'package:palate_path/src/features/auth/screens/auth_gate.dart';
 import 'package:palate_path/src/features/onboarding/screens/food_preferences_screen.dart';
 import 'package:palate_path/src/features/profile/screens/profile_screen.dart';
 import 'package:palate_path/src/features/recipes/screens/favorites_screen.dart';
@@ -14,51 +8,23 @@ import 'package:palate_path/src/features/recipes/screens/home_screen.dart';
 import 'package:palate_path/src/features/recipes/screens/recipe_detail_screen.dart';
 import 'package:palate_path/src/features/shell/screens/app_shell.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  }
-
-  runApp(const PalatePathApp());
-
-  // optional: seed AFTER UI starts (recommended)
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    SeedService().seedRecipes(); // don't await
-  });
-}
-
-class PalatePathApp extends StatelessWidget {
-  const PalatePathApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Palate Path',
-      theme: appTheme,
-      routerConfig: _router,
-    );
-  }
-}
-
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-final _router = GoRouter(
+final GoRouter appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
-  initialLocation: '/auth',
+  initialLocation: '/',
   routes: [
-    GoRoute(path: '/auth', builder: (context, state) => const AuthScreen()),
+    GoRoute(path: '/', builder: (context, state) => const AuthGate()),
     GoRoute(
       path: '/food-preferences',
       builder: (context, state) => const FoodPreferencesScreen(),
     ),
     ShellRoute(
       navigatorKey: _shellNavigatorKey,
-      builder: (context, state, child) => AppShell(child: child),
+      builder: (context, state, child) {
+        return AppShell(child: child);
+      },
       routes: [
         GoRoute(
           path: '/home',
@@ -66,10 +32,8 @@ final _router = GoRouter(
           routes: [
             GoRoute(
               path: ':id',
-              parentNavigatorKey: _rootNavigatorKey,
-              builder: (context, state) => RecipeDetailScreen(
-                recipeId: state.pathParameters['id']!,
-              ),
+              builder: (context, state) =>
+                  RecipeDetailScreen(recipeId: state.pathParameters['id']!),
             ),
           ],
         ),
@@ -85,4 +49,3 @@ final _router = GoRouter(
     ),
   ],
 );
-
