@@ -15,6 +15,18 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirebaseService _firebaseService = FirebaseService();
 
+  // Allergy keyword map for more reliable filtering.
+  static const Map<String, List<String>> allergyKeywordMap = {
+    'peanuts': ['peanut', 'peanuts', 'peanut butter', 'peanut sauce'],
+    'dairy': ['dairy', 'milk', 'cheese', 'yogurt', 'butter', 'cream', 'lactose'],
+    'gluten': ['gluten', 'wheat', 'barley', 'rye', 'bread', 'flour', 'semolina'],
+    'shellfish': ['shellfish', 'shrimp', 'crab', 'lobster', 'oyster', 'clam', 'mussel'],
+    'soy': ['soy', 'soybean', 'tofu', 'edamame', 'soy milk', 'soy sauce'],
+    'tree nuts': ['nut', 'almond', 'walnut', 'pecan', 'cashew', 'pistachio', 'hazelnut'],
+    'fish': ['fish', 'salmon', 'tuna', 'cod', 'anchovy', 'sardine'],
+    'eggs': ['egg', 'eggs', 'mayonnaise'],
+  };
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -67,19 +79,32 @@ class _HomeScreenState extends State<HomeScreen> {
               }
 
               final allRecipes = recipeSnapshot.data ?? [];
-              final likedCuisines = userProfile.likedFoods.map((f) => f.toLowerCase().trim()).toList();
-              final dislikedCuisines = userProfile.dislikedFoods.map((f) => f.toLowerCase().trim()).toList();
-              final allergies = userProfile.allergies.map((a) => a.toLowerCase().trim()).toList();
+              
+              // Normalize preferences for reliable matching
+              final likedCuisines = userProfile.likedFoods.map((f) => f.toLowerCase().trim()).toSet();
+              final dislikedCuisines = userProfile.dislikedFoods.map((f) => f.toLowerCase().trim()).toSet();
+              final userAllergies = userProfile.allergies.map((a) => a.toLowerCase().trim()).toList();
+
+              // Create a comprehensive set of all allergy keywords to check against
+              final Set<String> allAllergyKeywords = {};
+              for (final allergy in userAllergies) {
+                allAllergyKeywords.add(allergy); // Add the base allergy term
+                if (allergyKeywordMap.containsKey(allergy)) {
+                  allAllergyKeywords.addAll(allergyKeywordMap[allergy]!);
+                }
+              }
 
               final filteredRecipes = allRecipes.where((recipe) {
                 final recipeCuisine = recipe.cuisine.toLowerCase().trim();
 
+                // Cuisine filtering
                 final isLiked = likedCuisines.contains(recipeCuisine);
                 final isDisliked = dislikedCuisines.contains(recipeCuisine);
 
-                final hasAllergy = allergies.any((allergy) => 
+                // Allergy filtering: check if any ingredient contains any allergy keyword
+                final hasAllergy = allAllergyKeywords.any((keyword) => 
                   recipe.ingredients.any((ingredient) => 
-                    ingredient.toLowerCase().contains(allergy)
+                    ingredient.toLowerCase().trim().contains(keyword)
                   )
                 );
 
@@ -90,6 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 return const Center(
                   child: Text(
                     'No recipes match your preferences. Try adding more!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16),
                   ),
                 );
               }
